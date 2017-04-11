@@ -31,7 +31,7 @@ def get_ngram(x):
     except:
         print('error')
     return ngram
-# rus_text = 'Масштабное тактико специальное учение. Я против масштабного тактико специального учения. Защита западного военного округа. Я голосую за защиту западного военного округа. Развивая качающимися листьями, дерево было наклонено. Красно-белый большой раровский кот Чубайс hero - черный пес любви людей на 5 стр. ест красную сосиску в настоящее время! Кот остался доволен США. Правда его масса в 40 кг. немного волновала хозяйку.'
+# rus_text = 'Масштабное тактико-специальное учение. Я против масштабного тактико-специального учения. Защита западного военного округа. Я голосую за защиту западного военного округа. Красно-белый большой раровский кот Чубайс hero - черный пес любви людей на 5 стр. ест красную сосиску в настоящее время! Кот остался доволен США. Правда его масса в 40 кг. немного волновала хозяйку.'
 try:
     tags = tagger.tag_text(rus_text)
     gender_id = {'N': 2, 'A': 3}
@@ -69,10 +69,10 @@ try:
     # filtering of groups that do not end up with a noun
     df3 = df2.loc[(df2['gov_pos'].isin(['N', 'Foreign']))].reset_index(drop=True)
     # case is set based on the order of nouns in the group
-    df3['is_noun'] = (df3['pos'] == 'N')
+    df3['is_noun'] = df3['pos'].apply(lambda x: True if x in ('N', 'M') else False)
     df3['case_group'] = df3.groupby(['sentid', 'group'])['is_noun'].cumsum()
     df3['case_final'] = df3.apply(
-        lambda x: 'g' if ((x['case_group'] > 1.0) | ((x['case_group'] == 1.0) & (x['case'] != 'N'))) & (
+        lambda x: 'g' if ((x['case_group'] > 1.0) | ((x['case_group'] == 1.0) & (x['pos'] not in ['N', 'M']))) & (
             x['case'] == 'g') else 'n', axis=1)
     # ngram is lemmatized version of token based on the group gender and appropriate case
     df3['case_final'] = df3['case_final'].map({'n': 'nomn', 'g': 'gent'})
