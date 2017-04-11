@@ -1,10 +1,14 @@
+import os
+import sys
+activate_this = os.path.join('/var/lib/postgresql/ve/rus_nlp', 'bin', 'activate_this.py')
+exec(open(activate_this).read(), dict(__file__=activate_this))
 import pymorphy2
 import pandas as pd
 import treetaggerwrapper
 morph = pymorphy2.MorphAnalyzer()
 tagger = treetaggerwrapper.TreeTagger(TAGLANG='ru',
-                                      TAGDIR='D:\\_TMS\\_external\\TreeTagger',
-                                      TAGPARFILE='D:\\_TMS\\_external\\TreeTagger\\lib\\russian.par')
+                                      TAGDIR='/var/lib/postgresql/opt/treetagger',
+                                      TAGPARFILE='/var/lib/postgresql/opt/lib/russian.par')
 def get_ngram(x):
     ngram = x['lemma']
     try:
