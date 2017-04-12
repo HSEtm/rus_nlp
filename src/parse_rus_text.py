@@ -10,10 +10,10 @@ tagger = treetaggerwrapper.TreeTagger(TAGLANG='ru',
                                       TAGDIR='/var/lib/postgresql/opt/treetagger',
                                       TAGPARFILE='/var/lib/postgresql/opt/lib/russian.par')
 def get_ngram(x):
-    ngram = x['lemma']
+    ngram = x['token']
     try:
         best = False
-        morphs = morph.parse(x['lemma'])
+        morphs = morph.parse(x['token'])
         if len(morphs) > 0:
             for m in morphs:
                 if m.tag.POS == x['pos']:
@@ -31,7 +31,7 @@ def get_ngram(x):
     except:
         print('error')
     return ngram
-# rus_text = 'Масштабное тактико-специальное учение. Я против масштабного тактико-специального учения. Защита западного военного округа. Я голосую за защиту западного военного округа. Красно-белый большой раровский кот Чубайс hero - черный пес любви людей на 5 стр. ест красную сосиску в настоящее время! Кот остался доволен США. Правда его масса в 40 кг. немного волновала хозяйку.'
+# rus_text = 'Масштабное тактико-специальное учение впервые за 40 лет. Я против масштабного тактико-специального учения. Защита западного военного округа. Я голосую за защиту западного военного округа. Красно-белый большой раровский кот Чубайс hero - черный пес любви людей на 5 стр. ест красную сосиску в настоящее время! Кот остался доволен США. Правда его масса в 40 кг. немного волновала хозяйку.'
 try:
     tags = tagger.tag_text(rus_text)
     gender_id = {'N': 2, 'A': 3}
@@ -74,7 +74,6 @@ try:
     df3['case_final'] = df3.apply(
         lambda x: 'g' if ((x['case_group'] > 1.0) | ((x['case_group'] == 1.0) & (x['pos'] not in ['N', 'M']))) & (
             x['case'] == 'g') else 'n', axis=1)
-    # ngram is lemmatized version of token based on the group gender and appropriate case
     df3['case_final'] = df3['case_final'].map({'n': 'nomn', 'g': 'gent'})
     df3['pos'] = df3['pos'].map({'N': 'NOUN', 'A': 'ADJF'})
     df3['gender'] = df3['gender'].map({'n': 'neut', 'f': 'femn', 'm': 'masc'})
@@ -84,10 +83,9 @@ try:
         lambda x: {x['pos'], x['case_final'], x['gender'], x['number']},
         axis=1)
     df3['inflect'] = df3['inflect'].apply(lambda x: {y for y in x if y})
-    df3['ngram'] = df3[['lemma', 'inflect', 'pos']].apply(get_ngram, axis=1)
+    # transformation of tokens into correct part-of-speech, case, gender and number form
+    df3['ngram'] = df3[['lemma', 'token', 'inflect', 'pos']].apply(get_ngram, axis=1)
     df4 = df3.groupby(['sentid', 'group'])['ngram'].apply(lambda x: ' '.join(x)).reset_index()
-    # df4 = df3.groupby(['sentid', 'group'])['lemma'].apply(lambda x: ' '.join(x)).reset_index()
-    # df4['ngram'] = df4['lemma']
     result = df4[['sentid', 'ngram']]
 except:
     print('error')
