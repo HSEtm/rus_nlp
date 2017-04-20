@@ -38,18 +38,23 @@ rus_text = """«Группа ГАЗ» представила в рамках ф�
 В модулях, расположенных в микроавтобусе и прицепе, могут быть созданы кабинеты функциональной диагностики, стоматологии, офтальмологии, кардиологии, детского и женского здоровья, передвижной флюорографический и рентгенологический кабинеты, лаборатории различного назначения, передвижной донорский пункт, кабинет урологии и многое другое.
 Один из возможных примеров использования автомобиля — флюорографический комплекс. В этом случае в одном модуле может быть размещен кабинет флюорографии (цифровой флюорограф, рентгензащита отсека, бактерицидный облучатель воздуха), а в другом — кабинет рентгенолога (автоматизированное рабочее место врача с набором необходимого оборудования, компьютером и принтером).
 """
-combinator = Combinator(DEFAULT_GRAMMARS)
-for grammar, tokens in combinator.resolve_matches(combinator.extract(rus_text), strict=False):
-    print(grammar)
-    for t in tokens:
-        print(t)
-
 try:
+    combinator = Combinator(DEFAULT_GRAMMARS)
+    token_ners = []
+    token_ners_id = 0
+    for grammar, tokens in combinator.resolve_matches(combinator.extract(rus_text), strict=True):
+        for tok in tokens:
+            token_ners.append({'begin': tok.position[0],
+                               'end': tok.position[1],
+                               'token': tok.value,
+                               'ner': str(grammar)})
+    df_ners = pd.DataFrame.from_dict(data=token_ners)
+    df_ners.sort_values(['begin', 'end'], ascending=[True, True], inplace=True)
+    df_ners.reset_index(drop=True, inplace=True)
     tags = tagger.tag_text(rus_text)
     gender_id = {'N': 2, 'A': 3}
     number_id = {'N': 3, 'A': 4}
     case_id = {'N': 4, 'A': 5}
-    # Category=Noun, Type = common, Gender = masculine, Number = singular, Case = accusative, Animate = no
     result = pd.DataFrame(columns=['docid', 'word'])
     rows = list()
     sentid = 1
@@ -62,11 +67,17 @@ try:
                 if prev[1] == 'SENT' and len(old[2]) - len(old[0]) < 4 and t[0][0].upper() == t[0][0]:
                     sentid += 1
                     depid = 1
+            ner = ''
+            if token_ners_id < len(df_ners):
+                if df_ners['token'][token_ners_id] == t[0]:
+                    ner = df_ners['ner'][token_ners_id]
+                    token_ners_id += 1
             rows.append({'sentid': sentid, 'depid': depid, 'token': t[0], 'lemma': t[2],
                          'pos': 'Foreign' if t[1] == '-' and len(t[1]) != len(t[0]) else t[1][0],
                          'gender': t[1][gender_id[t[1][0]]] if len(t[1]) > 3 and t[1][0] in (['N', 'A']) else '-',
                          'number': t[1][number_id[t[1][0]]] if len(t[1]) > 4 and t[1][0] in (['N', 'A']) else '-',
-                         'case': t[1][case_id[t[1][0]]] if len(t[1]) > 5 and t[1][0] in (['N', 'A']) else '-'})
+                         'case': t[1][case_id[t[1][0]]] if len(t[1]) > 5 and t[1][0] in (['N', 'A']) else '-',
+                         'ner': ner})
             depid += 1
             old = prev.copy()
             prev = t.copy()
