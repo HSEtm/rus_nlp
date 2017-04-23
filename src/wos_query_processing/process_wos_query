@@ -1,0 +1,67 @@
+import re
+
+
+def transform_artifacts(_artifacts, _i):
+    _pos = []
+    for _artifact in _artifacts:
+        _pos.append(("l{0}.pos like '{1}'").format(_i, _artifact))
+    return ((' inner join tokens t{0}'
+             ' on x{0}.tokenid = t{0}.tokenid'
+             ' inner join lemmas l{0}'
+             ' on t{0}.morphid = l{0}.morphid'
+             ' and ({1})').format(_i, ' or '.join(_pos)))
+
+
+def transform_phrase(_phrase):
+    _new_query = []
+    _tokens = _phrase.split(sep=' ')
+    _artifacts = _tokens[0].split(sep='|')
+    _new_query.append(('select x0.docid, x0.secid, x0.sentid from search_word({0}, {1}) as x0').
+                      format("'" + _artifacts[0] + "'", 0))
+    if len(_artifacts) > 1:
+        _new_query.append(transform_artifacts(_artifacts[1:], 0))
+    _i = 1
+    _flag = '0'
+    for _token in _tokens[1:]:
+        if _token.find('{') >= 0 and _token.find('}') >= 0:
+            if len(_token) == 2:
+                _flag = 'unlimited'
+            elif len(_token) == 3:
+                _flag = _token[1]
+        else:
+            _artifacts = _token.split(sep='|')
+
+            _new_query.append((' inner join search_word({0}, 0) as x{2}'
+                               ' on x{2}.docid = x{1}.docid'
+                               ' and x{2}.secid = x{1}.secid'
+                               ' and x{2}.sentid = x{1}.sentid').
+                              format("'" + _artifacts[0] + "'", _i - 1, _i))
+            if _flag == 'unlimited':
+                _new_query.append((' and x{1}.depid > x{0}.depid').format(_i - 1, _i))
+            else:
+                _new_query.append((' and x{2}.depid - x{1}.depid <= {0}').format(int(_flag) + 1, _i - 1, _i))
+            if len(_artifacts) > 1:
+                _new_query.append(transform_artifacts(_artifacts[1:], _i))
+            _i += 1
+            _flag = '0'
+    return _new_query
+
+
+and_pattern = re.compile(re.escape(' and '), re.IGNORECASE)
+or_pattern = re.compile(re.escape(' or '), re.IGNORECASE)
+phrase_pattern = re.compile('["].[^"]+["]')
+word_pattern = re.compile('[ ][^,]')
+
+query = '"solar cell" and "some {} mome%|VB%"'
+
+new_query = query
+new_query = and_pattern.sub(' INTERSECT ', new_query)
+new_query = or_pattern.sub(' UNION ', new_query)
+phrases = phrase_pattern.findall(new_query)
+try:
+    for phrase in list(set(phrases)):
+        new_query = new_query.replace(phrase, 'select docid, secid, sentid from (' +
+                                      ''.join(transform_phrase(phrase.replace('"', ''))) +
+                                      ') as x')
+except:
+    print('error occurred, please read the manual to create correct query to the text mining database')
