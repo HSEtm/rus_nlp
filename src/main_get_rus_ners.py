@@ -107,8 +107,6 @@ try:
         {'ner': lambda x: ' '.join(x), 'depid': lambda y: tuple(y.tolist())}).reset_index()
     result = df3_ners[['sentid', 'ner', 'depid']]
     result.columns = ['sentid', 'ner', 'depids']
-except:
-    print('error')
-finally:
     return result.to_dict(orient='records')
-    # print(result.to_dict(orient='records'))
+except:
+    return ''

@@ -90,8 +90,6 @@ try:
         {'ngram': lambda x: ' '.join(x), 'depid': lambda y: tuple(y.tolist())}).reset_index()
     result = df4[['sentid', 'ngram', 'depid']]
     result.columns = ['sentid', 'ngram', 'depids']
-except:
-    print('error')
-finally:
     return result.to_dict(orient='records')
-    # print(result.to_dict(orient='records'))
+except:
+    return ''
