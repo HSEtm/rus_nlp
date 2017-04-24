@@ -87,9 +87,11 @@ try:
     # transformation of tokens into correct part-of-speech, case, gender and number form
     df3['ngram'] = df3[['lemma', 'token', 'inflect', 'pos']].apply(get_ngram, axis=1)
     df4 = df3.groupby(['sentid', 'group']).agg(
-        {'ngram': lambda x: ' '.join(x), 'depid': lambda y: tuple(y.tolist())}).reset_index()
-    result = df4[['sentid', 'ngram', 'depid']]
-    result.columns = ['sentid', 'ngram', 'depids']
+        {'ngram': lambda x: ' '.join(x), 'depid': lambda y: tuple(y.tolist()),
+         'inflect': lambda z: tuple(z.tolist())}).reset_index()
+    result = df4[['sentid', 'depid', 'ngram', 'inflect']]
+    result.columns = ['sentid', 'depids', 'ngram', 'inflect']
     return result.to_dict(orient='records')
 except:
     return ''
+    print('error')

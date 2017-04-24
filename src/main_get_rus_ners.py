@@ -47,7 +47,7 @@ try:
                                'begin': tok.position[0],
                                'end': tok.position[1],
                                'token': tok.value,
-                               'ner': str(grammar)})
+                               'ner_type': str(grammar)})
         group_ner_id += 1
     df_ners = pd.DataFrame.from_dict(data=token_ners)
     df_ners.sort_values(['begin', 'end'], ascending=[True, True], inplace=True)
@@ -67,11 +67,11 @@ try:
                 if prev[1] == 'SENT' and len(old[2]) - len(old[0]) < 4 and t[0][0].upper() == t[0][0]:
                     sentid += 1
                     depid = 1
-            ner = ''
+            ner_type = ''
             ner_id = None
             if token_ners_id < len(df_ners):
                 if df_ners['token'][token_ners_id] == t[0]:
-                    ner = df_ners['ner'][token_ners_id]
+                    ner_type = df_ners['ner_type'][token_ners_id]
                     ner_id = df_ners['ner_id'][token_ners_id]
                     token_ners_id += 1
             rows.append({'sentid': sentid, 'depid': depid, 'token': t[0], 'lemma': t[2],
@@ -79,7 +79,7 @@ try:
                          'gender': t[1][gender_id[t[1][0]]] if len(t[1]) > 3 and t[1][0] in (['N', 'A']) else '-',
                          'number': t[1][number_id[t[1][0]]] if len(t[1]) > 4 and t[1][0] in (['N', 'A']) else '-',
                          'case': t[1][case_id[t[1][0]]] if len(t[1]) > 5 and t[1][0] in (['N', 'A']) else '-',
-                         'ner': ner,
+                         'ner_type': ner_type,
                          'ner_id': ner_id})
             depid += 1
             old = prev.copy()
@@ -91,8 +91,10 @@ try:
     df2_ners['is_noun'] = df2_ners['pos'].apply(lambda x: True if x in ('N', 'M') else False)
     df2_ners['case_group'] = df2_ners.groupby(['sentid', 'ner_id'])['is_noun'].cumsum()
     df2_ners['case_final'] = df2_ners.apply(
-        lambda x: 'g' if ((x['case_group'] > 1.0) | ((x['case_group'] == 1.0) & (x['pos'] not in ['N', 'M']))) & (
-            x['case'] == 'g') else 'n', axis=1)
+        lambda x: 'g' if (((x['case_group'] > 1.0) & ('Person' not in x['ner_type'])) |
+                          ((x['case_group'] == 1.0) &
+                           (x['pos'] not in ['N', 'M']))) &
+                         (x['case'] == 'g') else 'n', axis=1)
     df2_ners['case_final'] = df2_ners['case_final'].map({'n': 'nomn', 'g': 'gent'})
     df2_ners['pos'] = df2_ners['pos'].map({'N': 'NOUN', 'A': 'ADJF'})
     df2_ners['gender'] = df2_ners['gender'].map({'n': 'neut', 'f': 'femn', 'm': 'masc'})
@@ -104,9 +106,11 @@ try:
     df2_ners['inflect'] = df2_ners['inflect'].apply(lambda x: {y for y in x if y})
     df2_ners['ner'] = df2_ners[['lemma', 'token', 'inflect', 'pos']].apply(get_ngram, axis=1)
     df3_ners = df2_ners.groupby(['sentid', 'ner_id']).agg(
-        {'ner': lambda x: ' '.join(x), 'depid': lambda y: tuple(y.tolist())}).reset_index()
-    result = df3_ners[['sentid', 'ner', 'depid']]
-    result.columns = ['sentid', 'ner', 'depids']
+        {'ner': lambda x: ' '.join(x), 'depid': lambda y: tuple(y.tolist()),
+         'ner_type': 'first', 'inflect': lambda z: tuple(z.tolist())}).reset_index()
+    result = df3_ners[['sentid', 'depid', 'ner', 'ner_type', 'inflect']]
+    result.columns = ['sentid', 'depids', 'ner', 'ner_type', 'inflect']
     return result.to_dict(orient='records')
 except:
     return ''
+    print('error')
